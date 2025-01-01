@@ -1,1 +1,1 @@
-# know-your-rights
+know-your-rights
