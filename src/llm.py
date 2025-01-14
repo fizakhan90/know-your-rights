@@ -1,49 +1,51 @@
-import os
 from mistralai import Mistral
-import dotenv
+from typing import List, Dict
+from config import Config
+import logging
+import time
 
-
-dotenv.load_dotenv()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class RightsLLM:
+    MAX_HISTORY_LENGTH = 10
+    
     def __init__(self):
-        self.api_key = os.getenv("MISTRAL_API_KEY")
-        if not self.api_key:
-            raise ValueError("MISTRAL_API_KEY not found in environment variables")
-        
-        self.model = "mistral-large-latest"
+        self.api_key = Config.MISTRAL_CONFIG['api_key']
+        self.model = Config.MISTRAL_CONFIG['model']
         self.client = Mistral(api_key=self.api_key)
-    
-    def generate_response(self, context, query):
-        prompt = f"""
-        Based on the following women's rights information:
-        {context}
+        self.conversation_history = []
+
+    def generate_response(self, context: str, query: str, is_follow_up: bool = False, retries: int = 3) -> str:
+        messages = [
+            {"role": "system", "content": f"You are a women's rights assistant. Use this context to answer questions: {context}"}
+        ]
         
-        Answer the following question:
-        {query}
+        if is_follow_up:
+            messages.extend(self.conversation_history)
         
-        Provide a clear and concise response using only the information given.
-        Include relevant citations when possible.
-        """
+        messages.append({"role": "user", "content": query})
         
-        try:
-            response = self.client.chat.complete(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    },
-                ]
-            )
-            
-            return response.choices[0].message.content
-            
-        except Exception as e:
-            print(f"Error generating response: {str(e)}")
-            return f"Error: Unable to generate response due to: {str(e)}"
-    
-    def __str__(self):
-        return f"RightsLLM(model={self.model})"
+        for attempt in range(retries):
+            try:
+                response = self.client.chat.complete(
+                    model=self.model,
+                    messages=messages,
+                    timeout=10
+                )
+                self.conversation_history.append({"role": "user", "content": query})
+                self.conversation_history.append({"role": "assistant", "content": response.choices[0].message.content})
+                return response.choices[0].message.content
+            except Exception as e:
+                logger.warning(f"Retry {attempt + 1}/{retries} failed: {str(e)}")
+                time.sleep(2 ** attempt)
+        
+        return "Error: Unable to process your request. Please try again later."
+
+    def clear_conversation(self):
+        self.conversation_history = []
+        logger.info("Conversation history cleared")
+
+
 
 
