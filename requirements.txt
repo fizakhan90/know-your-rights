@@ -1,7 +1,14 @@
 streamlit
+<<<<<<< HEAD
 mistralai
 snowflake-connector-python
 python-dotenv
 requests
 pandas
 numpy
+=======
+snowflake-connector-python
+python-dotenv
+pandas
+mistralai
+>>>>>>> 4ccbcd746440976b1d408c53ab68dcbefdb45905
